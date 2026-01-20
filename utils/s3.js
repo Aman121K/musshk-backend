@@ -46,7 +46,7 @@ async function uploadToS3(fileBuffer, fileName, folder = 'uploads', contentType 
       Key: key,
       Body: fileBuffer,
       ContentType: contentType,
-      ACL: 'public-read', // Make file publicly accessible
+      // ACL: 'public-read', // Make file publicly accessible
     });
 
     await s3Client.send(command);
