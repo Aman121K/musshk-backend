@@ -32,6 +32,9 @@ app.use('/api/orders', require('./routes/orders'));
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/blogs', require('./routes/blogs'));
 app.use('/api/testimonials', require('./routes/testimonials'));
+app.use('/api/banners', require('./routes/banners'));
+app.use('/api/discounts', require('./routes/discounts'));
+app.use('/api/users', require('./routes/users'));
 app.use('/api/upload', require('./routes/upload'));
 app.use('/api/import', require('./routes/import'));
 app.use('/api/payment', require('./routes/payment'));
@@ -51,6 +54,9 @@ app.get('/', (req, res) => {
       products: '/api/products',
       blogs: '/api/blogs',
       testimonials: '/api/testimonials',
+      banners: '/api/banners',
+      discounts: '/api/discounts',
+      users: '/api/users',
       orders: '/api/orders',
       auth: '/api/auth',
       upload: '/api/upload'

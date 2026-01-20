@@ -26,13 +26,23 @@ PORT=5000
 JWT_SECRET=your-secret-key-change-in-production
 ```
 
-### 3. Create Uploads Directory
+### 3. Install Dependencies (including AWS SDK)
 
 ```bash
-mkdir -p public/uploads
+npm install
+# or
+yarn install
 ```
 
-### 4. Start the Server
+### 4. Set Up AWS S3 (for image uploads)
+
+1. Create an S3 bucket in AWS
+2. Create an IAM user with S3 permissions
+3. Add AWS credentials to `.env` file (see `ENV_SETUP.md` for details)
+
+**Note:** If S3 is not configured, the upload API will still work but will store files locally.
+
+### 5. Start the Server
 
 **Development mode (with auto-reload):**
 ```bash
@@ -81,9 +91,31 @@ The server will run on **http://localhost:5000**
 - `PUT /api/cart/:sessionId/:itemId` - Update cart item
 - `DELETE /api/cart/:sessionId/:itemId` - Remove from cart
 
+### Banners
+- `GET /api/banners` - List all banners
+- `GET /api/banners/:id` - Get single banner
+- `POST /api/banners` - Create banner (Admin)
+- `PUT /api/banners/:id` - Update banner (Admin)
+- `DELETE /api/banners/:id` - Delete banner (Admin)
+
+### Discounts
+- `GET /api/discounts` - List all discounts
+- `GET /api/discounts/:id` - Get single discount
+- `POST /api/discounts` - Create discount (Admin)
+- `POST /api/discounts/validate` - Validate discount code
+- `PUT /api/discounts/:id` - Update discount (Admin)
+- `DELETE /api/discounts/:id` - Delete discount (Admin)
+
+### Users
+- `GET /api/users` - List all users (Admin)
+- `GET /api/users/:id` - Get single user
+- `PUT /api/users/:id` - Update user (Admin)
+- `DELETE /api/users/:id` - Delete user (Admin)
+
 ### Upload
-- `POST /api/upload/image` - Upload single image
-- `POST /api/upload/images` - Upload multiple images
+- `POST /api/upload/image?folder=banners` - Upload single image to S3
+- `POST /api/upload/images?folder=products` - Upload multiple images to S3
+  - Available folders: `banners`, `products`, `blogs`, `testimonials`, `discounts`, `uploads`
 
 ### Auth
 - `POST /api/auth/register` - Register user
@@ -114,6 +146,8 @@ backend/
 │   ├── Product.js
 │   ├── Blog.js
 │   ├── Testimonial.js
+│   ├── Banner.js
+│   ├── Discount.js
 │   ├── Order.js
 │   ├── User.js
 │   └── Category.js
@@ -121,11 +155,17 @@ backend/
 │   ├── products.js
 │   ├── blogs.js
 │   ├── testimonials.js
+│   ├── banners.js
+│   ├── discounts.js
+│   ├── users.js
 │   ├── orders.js
 │   ├── cart.js
 │   ├── auth.js
 │   ├── upload.js
 │   └── categories.js
+├── utils/                # Utility functions
+│   ├── s3.js            # S3 upload utilities
+│   └── email.js
 ├── public/
 │   └── uploads/          # Uploaded images
 └── seed.js               # Database seeder
@@ -139,6 +179,16 @@ backend/
 - `PORT` - Server port (default: 5000)
 - `JWT_SECRET` - Secret key for JWT tokens (required)
 - `CORS_ORIGINS` - Allowed CORS origins (optional, defaults to all)
+
+### AWS S3 Configuration (for image uploads)
+
+- `AWS_ACCESS_KEY_ID` - AWS access key ID (required for S3 uploads)
+- `AWS_SECRET_ACCESS_KEY` - AWS secret access key (required for S3 uploads)
+- `AWS_REGION` - AWS region (default: us-east-1)
+- `AWS_S3_BUCKET_NAME` - S3 bucket name (required for S3 uploads)
+- `AWS_S3_BASE_URL` - S3 base URL (optional, auto-generated if not provided)
+
+See `ENV_SETUP.md` for detailed S3 setup instructions.
 
 ### MongoDB Setup
 
