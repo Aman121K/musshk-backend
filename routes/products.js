@@ -5,13 +5,18 @@ const Product = require('../models/Product');
 // Get all products
 router.get('/', async (req, res) => {
   try {
-    const { category, featured, bestSeller, newArrival, search, limit, page } = req.query;
+    const { category, featured, bestSeller, newArrival, newArrivalDate, collection, search, limit, page } = req.query;
     const query = {};
 
     if (category) query.category = category;
     if (featured === 'true') query.featured = true;
     if (bestSeller === 'true') query.bestSeller = true;
     if (newArrival === 'true') query.newArrival = true;
+    if (newArrivalDate) query.newArrivalDate = newArrivalDate;
+    if (collection) {
+      // Filter by collection name
+      query.collections = collection;
+    }
     if (search) {
       query.$or = [
         { name: { $regex: search, $options: 'i' } },
@@ -42,7 +47,20 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Get single product
+// Get single product by ID (for admin)
+router.get('/id/:id', async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    res.json(product);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get single product by slug
 router.get('/:slug', async (req, res) => {
   try {
     const product = await Product.findOne({ slug: req.params.slug });

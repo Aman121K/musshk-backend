@@ -35,9 +35,21 @@ const userSchema = new mongoose.Schema({
     enum: ['user', 'admin'],
     default: 'user',
   },
+  visitorId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Visitor',
+    default: null,
+  },
   isActive: {
     type: Boolean,
     default: true,
+  },
+  lastLogin: {
+    type: Date,
+  },
+  loginCount: {
+    type: Number,
+    default: 0,
   },
 }, {
   timestamps: true,

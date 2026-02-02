@@ -82,6 +82,13 @@ const productSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  newArrivalDate: {
+    type: String, // e.g., "SEPTEMBER - 2025", "July-2025", "MARCH- 2025"
+  },
+  collections: [{
+    type: String,
+    enum: ['Best Seller', 'Niche Edition', 'Inspired Perfumes', 'New Arrivals'],
+  }],
   notes: [{
     type: String,
   }],

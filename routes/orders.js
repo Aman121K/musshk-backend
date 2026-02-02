@@ -14,6 +14,8 @@ router.post('/', async (req, res) => {
     const orderData = {
       ...req.body,
       orderNumber: generateOrderNumber(),
+      // Set order status to Processing for COD orders
+      orderStatus: req.body.paymentMethod === 'COD' ? 'Processing' : 'Pending',
     };
     const order = new Order(orderData);
     await order.save();
@@ -34,6 +36,18 @@ router.get('/', async (req, res) => {
   try {
     const orders = await Order.find()
       .populate('user', 'name email')
+      .populate('items.product', 'name images')
+      .sort({ createdAt: -1 });
+    res.json(orders);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get orders by user ID
+router.get('/user/:userId', async (req, res) => {
+  try {
+    const orders = await Order.find({ user: req.params.userId })
       .populate('items.product', 'name images')
       .sort({ createdAt: -1 });
     res.json(orders);

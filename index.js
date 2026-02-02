@@ -8,6 +8,11 @@ const app = express();
 
 // Middleware
 app.use(cors());
+
+// Webhook route needs raw body, so we handle it before JSON parsing
+app.use('/api/payment/webhook', express.raw({ type: 'application/json' }));
+
+// Regular JSON parsing for all other routes
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -38,6 +43,7 @@ app.use('/api/users', require('./routes/users'));
 app.use('/api/upload', require('./routes/upload'));
 app.use('/api/import', require('./routes/import'));
 app.use('/api/payment', require('./routes/payment'));
+app.use('/api/visitors', require('./routes/visitors'));
 
 // Health check
 app.get('/api/health', (req, res) => {

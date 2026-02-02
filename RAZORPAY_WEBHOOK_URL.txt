@@ -1,0 +1,38 @@
+RAZORPAY WEBHOOK URL
+====================
+
+Copy this URL and paste it into Razorpay Dashboard:
+
+Production URL:
+https://api.musshk.com/api/payment/webhook
+
+Local Development URL (for testing):
+http://localhost:5000/api/payment/webhook
+
+===========================================
+
+SETUP INSTRUCTIONS:
+====================
+
+1. Go to Razorpay Dashboard → Settings → Webhooks
+2. Click "Add New Webhook"
+3. Paste the Production URL above
+4. Select these events:
+   ✓ payment.captured
+   ✓ payment.failed
+   ✓ payment.authorized (if using manual capture)
+5. Click "Create Webhook"
+6. Copy the "Webhook Secret" shown after creation
+7. Add it to your .env file as:
+   RAZORPAY_WEBHOOK_SECRET=Vikas@123@vikas123@
+
+===========================================
+
+WEBHOOK EVENTS HANDLED:
+====================
+
+✓ payment.captured - Automatically converts cart to order
+✓ payment.failed - Logs failed payment attempts
+✓ payment.authorized - Handles authorized payments
+
+===========================================

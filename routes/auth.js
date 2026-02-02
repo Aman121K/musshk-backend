@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
+const Visitor = require('../models/Visitor');
 const jwt = require('jsonwebtoken');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
@@ -8,15 +9,35 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-producti
 // Register
 router.post('/register', async (req, res) => {
   try {
-    const { name, email, password, phone } = req.body;
+    const { name, email, password, phone, sessionId } = req.body;
     
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ error: 'User already exists' });
     }
 
-    const user = new User({ name, email, password, phone });
+    const user = new User({ name, email, password, phone, isActive: true });
     await user.save();
+
+    // If sessionId provided, convert guest visitor to active user
+    if (sessionId) {
+      const visitor = await Visitor.findOne({ sessionId, isActive: true });
+      if (visitor) {
+        visitor.userId = user._id;
+        visitor.role = 'active';
+        await visitor.save();
+
+        // Link user with visitor
+        user.visitorId = visitor._id;
+        user.loginCount = 1;
+        user.lastLogin = new Date();
+        await user.save();
+      }
+    } else {
+      user.loginCount = 1;
+      user.lastLogin = new Date();
+      await user.save();
+    }
 
     const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '7d' });
 
@@ -26,6 +47,7 @@ router.post('/register', async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
+        role: user.role,
       },
     });
   } catch (error) {
@@ -36,7 +58,7 @@ router.post('/register', async (req, res) => {
 // Login
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, sessionId } = req.body;
 
     const user = await User.findOne({ email });
     if (!user) {
@@ -48,6 +70,29 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    // If sessionId provided, convert guest visitor to active user
+    if (sessionId) {
+      const visitor = await Visitor.findOne({ sessionId, isActive: true });
+      if (visitor) {
+        visitor.userId = user._id;
+        visitor.role = 'active';
+        await visitor.save();
+
+        // Update user with visitor reference
+        user.visitorId = visitor._id;
+        user.isActive = true;
+        user.lastLogin = new Date();
+        user.loginCount = (user.loginCount || 0) + 1;
+        await user.save();
+      }
+    } else {
+      // Update user login info even if no sessionId
+      user.isActive = true;
+      user.lastLogin = new Date();
+      user.loginCount = (user.loginCount || 0) + 1;
+      await user.save();
+    }
+
     const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '7d' });
 
     res.json({
@@ -56,6 +101,7 @@ router.post('/login', async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
+        role: user.role,
       },
     });
   } catch (error) {
