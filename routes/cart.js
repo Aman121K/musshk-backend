@@ -193,34 +193,4 @@ router.put('/:sessionId/checkout', async (req, res) => {
   }
 });
 
-// Get all pending carts (for admin)
-router.get('/admin/pending', async (req, res) => {
-  try {
-    const carts = await Cart.find({ status: 'pending' })
-      .populate('user', 'name email')
-      .populate('items.productId', 'name images')
-      .sort({ createdAt: -1 });
-    res.json(carts);
-  } catch (error) {
-    console.error('Error fetching pending carts:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Get all carts (for admin)
-router.get('/admin/all', async (req, res) => {
-  try {
-    const { status } = req.query;
-    const query = status ? { status } : {};
-    const carts = await Cart.find(query)
-      .populate('user', 'name email')
-      .populate('items.productId', 'name images')
-      .sort({ createdAt: -1 });
-    res.json(carts);
-  } catch (error) {
-    console.error('Error fetching carts:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
 module.exports = router;

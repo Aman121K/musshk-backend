@@ -34,17 +34,22 @@ router.post('/create-order', async (req, res) => {
       });
     }
 
-    const { amount, currency = 'INR', receipt, notes, cartId } = req.body;
+    const { amount, currency = 'INR', receipt, notes, cartId, orderData } = req.body;
 
     if (!amount || amount < 1) {
       return res.status(400).json({ error: 'Invalid amount' });
     }
 
-    // Ensure cartId is in notes for webhook reference
+    // Store order data in notes for webhook (if provided)
     const paymentNotes = {
       ...notes,
       cartId: cartId || notes?.cartId,
     };
+
+    // If orderData is provided, store it in notes for webhook
+    if (orderData) {
+      paymentNotes.orderData = JSON.stringify(orderData);
+    }
 
     const options = {
       amount: amount * 100, // Razorpay expects amount in paise
@@ -55,11 +60,16 @@ router.post('/create-order', async (req, res) => {
 
     const razorpayOrder = await razorpayInstance.orders.create(options);
 
-    // Update cart with Razorpay order ID
+    // Update cart with Razorpay order ID (if cartId provided)
     if (cartId) {
-      await Cart.findByIdAndUpdate(cartId, {
-        razorpayOrderId: razorpayOrder.id,
-      });
+      try {
+        await Cart.findByIdAndUpdate(cartId, {
+          razorpayOrderId: razorpayOrder.id,
+        });
+      } catch (err) {
+        console.error('Error updating cart:', err);
+        // Don't fail if cart update fails
+      }
     }
 
     res.json({
@@ -74,6 +84,53 @@ router.post('/create-order', async (req, res) => {
   }
 });
 
+// Create order directly from order data
+const createOrderFromData = async (orderData, payment) => {
+  try {
+    const orderNumber = generateOrderNumber();
+    
+    const order = new Order({
+      orderNumber,
+      user: orderData.user || null,
+      items: orderData.items || [],
+      totalAmount: orderData.totalAmount || 0,
+      email: orderData.email || orderData.shippingAddress?.email,
+      shippingAddress: orderData.shippingAddress || {},
+      paymentMethod: orderData.paymentMethod || 'Online',
+      paymentStatus: 'Paid',
+      orderStatus: 'Processing',
+      paymentDetails: {
+        razorpay_order_id: payment.order_id,
+        razorpay_payment_id: payment.id,
+        razorpay_payment_method: payment.method || '',
+        razorpay_bank: payment.bank || '',
+        razorpay_wallet: payment.wallet || '',
+        razorpay_vpa: payment.vpa || '',
+        razorpay_contact: payment.contact || '',
+        razorpay_email: payment.email || '',
+        razorpay_fee: payment.fee ? payment.fee / 100 : 0,
+        razorpay_tax: payment.tax ? payment.tax / 100 : 0,
+        razorpay_created_at: payment.created_at ? new Date(payment.created_at * 1000) : new Date(),
+      },
+    });
+
+    await order.save();
+
+    // Send confirmation email
+    try {
+      await sendOrderConfirmation(order, null);
+      console.log(`Order confirmation email sent to ${order.email}`);
+    } catch (emailError) {
+      console.error('Error sending order confirmation email:', emailError);
+    }
+
+    return order;
+  } catch (error) {
+    console.error('Error creating order:', error);
+    throw error;
+  }
+};
+
 // Verify payment signature (frontend verification - webhook is primary)
 router.post('/verify-payment', async (req, res) => {
   try {
@@ -84,7 +141,7 @@ router.post('/verify-payment', async (req, res) => {
       });
     }
 
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, cartId } = req.body;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, cartId, orderData } = req.body;
 
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
       return res.status(400).json({ error: 'Missing payment details' });
@@ -111,33 +168,48 @@ router.post('/verify-payment', async (req, res) => {
       return res.status(500).json({ error: 'Failed to fetch payment details' });
     }
 
-    // Convert cart to order if cartId provided
+    // Create order directly from orderData if provided
+    if (orderData) {
+      const order = await createOrderFromData(orderData, payment);
+      return res.json({
+        success: true,
+        message: 'Payment verified successfully and order created',
+        payment_id: razorpay_payment_id,
+        orderId: order._id,
+        orderNumber: order.orderNumber,
+      });
+    }
+
+    // Convert cart to order if cartId provided (backward compatibility)
     if (cartId) {
-      const cart = await Cart.findById(cartId).populate('user', 'name email');
-      
-      if (cart && cart.status === 'pending') {
-        // Convert cart to order
-        const order = await convertCartToOrder(cart, payment);
+      try {
+        const cart = await Cart.findById(cartId).populate('user', 'name email');
         
-        res.json({
-          success: true,
-          message: 'Payment verified successfully and order created',
-          payment_id: razorpay_payment_id,
-          orderId: order._id,
-          orderNumber: order.orderNumber,
-        });
-        return;
-      } else if (cart && cart.status === 'converted') {
-        // Cart already converted, return existing order
-        const order = await Order.findById(cart.orderId);
-        res.json({
-          success: true,
-          message: 'Payment verified successfully',
-          payment_id: razorpay_payment_id,
-          orderId: order._id,
-          orderNumber: order.orderNumber,
-        });
-        return;
+        if (cart && cart.status === 'pending') {
+          // Convert cart to order
+          const order = await convertCartToOrder(cart, payment);
+          
+          return res.json({
+            success: true,
+            message: 'Payment verified successfully and order created',
+            payment_id: razorpay_payment_id,
+            orderId: order._id,
+            orderNumber: order.orderNumber,
+          });
+        } else if (cart && cart.status === 'converted') {
+          // Cart already converted, return existing order
+          const order = await Order.findById(cart.orderId);
+          return res.json({
+            success: true,
+            message: 'Payment verified successfully',
+            payment_id: razorpay_payment_id,
+            orderId: order._id,
+            orderNumber: order.orderNumber,
+          });
+        }
+      } catch (err) {
+        console.error('Error processing cart:', err);
+        // Continue to return success even if cart processing fails
       }
     }
 
@@ -248,41 +320,57 @@ router.post('/webhook', async (req, res) => {
     if (event.event === 'payment.captured') {
       const payment = event.payload.payment.entity;
       const cartId = payment.notes?.cartId;
+      const orderDataStr = payment.notes?.orderData;
 
-      if (cartId) {
-        const cart = await Cart.findById(cartId).populate('user', 'name email');
-        
-        if (cart && cart.status === 'pending') {
-          // Convert cart to order
-          const order = await convertCartToOrder(cart, payment);
-          console.log(`Cart ${cartId} converted to order ${order.orderNumber} via webhook`);
-        } else if (cart && cart.status === 'converted') {
-          // Cart already converted, just update payment details if needed
-          const order = await Order.findById(cart.orderId);
-          if (order && order.paymentStatus !== 'Paid') {
-            await Order.findByIdAndUpdate(cart.orderId, {
-              paymentStatus: 'Paid',
-              orderStatus: 'Processing',
-              'paymentDetails.razorpay_order_id': payment.order_id,
-              'paymentDetails.razorpay_payment_id': payment.id,
-              'paymentDetails.razorpay_payment_method': payment.method || '',
-              'paymentDetails.razorpay_bank': payment.bank || '',
-              'paymentDetails.razorpay_wallet': payment.wallet || '',
-              'paymentDetails.razorpay_vpa': payment.vpa || '',
-              'paymentDetails.razorpay_contact': payment.contact || '',
-              'paymentDetails.razorpay_email': payment.email || '',
-              'paymentDetails.razorpay_fee': payment.fee ? payment.fee / 100 : 0,
-              'paymentDetails.razorpay_tax': payment.tax ? payment.tax / 100 : 0,
-              'paymentDetails.razorpay_created_at': payment.created_at ? new Date(payment.created_at * 1000) : new Date(),
-            });
-            
-            // Send email if not sent before
-            try {
-              await sendOrderConfirmation(order, null);
-            } catch (emailError) {
-              console.error('Error sending email:', emailError);
+      // Create order directly from orderData if provided
+      if (orderDataStr) {
+        try {
+          const orderData = JSON.parse(orderDataStr);
+          const order = await createOrderFromData(orderData, payment);
+          console.log(`Order ${order.orderNumber} created via webhook from orderData`);
+        } catch (err) {
+          console.error('Error creating order from orderData:', err);
+        }
+      }
+      // Convert cart to order if cartId provided (backward compatibility)
+      else if (cartId) {
+        try {
+          const cart = await Cart.findById(cartId).populate('user', 'name email');
+          
+          if (cart && cart.status === 'pending') {
+            // Convert cart to order
+            const order = await convertCartToOrder(cart, payment);
+            console.log(`Cart ${cartId} converted to order ${order.orderNumber} via webhook`);
+          } else if (cart && cart.status === 'converted') {
+            // Cart already converted, just update payment details if needed
+            const order = await Order.findById(cart.orderId);
+            if (order && order.paymentStatus !== 'Paid') {
+              await Order.findByIdAndUpdate(cart.orderId, {
+                paymentStatus: 'Paid',
+                orderStatus: 'Processing',
+                'paymentDetails.razorpay_order_id': payment.order_id,
+                'paymentDetails.razorpay_payment_id': payment.id,
+                'paymentDetails.razorpay_payment_method': payment.method || '',
+                'paymentDetails.razorpay_bank': payment.bank || '',
+                'paymentDetails.razorpay_wallet': payment.wallet || '',
+                'paymentDetails.razorpay_vpa': payment.vpa || '',
+                'paymentDetails.razorpay_contact': payment.contact || '',
+                'paymentDetails.razorpay_email': payment.email || '',
+                'paymentDetails.razorpay_fee': payment.fee ? payment.fee / 100 : 0,
+                'paymentDetails.razorpay_tax': payment.tax ? payment.tax / 100 : 0,
+                'paymentDetails.razorpay_created_at': payment.created_at ? new Date(payment.created_at * 1000) : new Date(),
+              });
+              
+              // Send email if not sent before
+              try {
+                await sendOrderConfirmation(order, null);
+              } catch (emailError) {
+                console.error('Error sending email:', emailError);
+              }
             }
           }
+        } catch (err) {
+          console.error('Error processing cart in webhook:', err);
         }
       }
     }
@@ -304,14 +392,30 @@ router.post('/webhook', async (req, res) => {
     else if (event.event === 'payment.authorized') {
       const payment = event.payload.payment.entity;
       const cartId = payment.notes?.cartId;
+      const orderDataStr = payment.notes?.orderData;
 
-      if (cartId) {
-        const cart = await Cart.findById(cartId).populate('user', 'name email');
-        
-        if (cart && cart.status === 'pending') {
-          // Convert cart to order
-          const order = await convertCartToOrder(cart, payment);
-          console.log(`Cart ${cartId} converted to order ${order.orderNumber} via webhook (authorized)`);
+      // Create order directly from orderData if provided
+      if (orderDataStr) {
+        try {
+          const orderData = JSON.parse(orderDataStr);
+          const order = await createOrderFromData(orderData, payment);
+          console.log(`Order ${order.orderNumber} created via webhook (authorized) from orderData`);
+        } catch (err) {
+          console.error('Error creating order from orderData:', err);
+        }
+      }
+      // Convert cart to order if cartId provided (backward compatibility)
+      else if (cartId) {
+        try {
+          const cart = await Cart.findById(cartId).populate('user', 'name email');
+          
+          if (cart && cart.status === 'pending') {
+            // Convert cart to order
+            const order = await convertCartToOrder(cart, payment);
+            console.log(`Cart ${cartId} converted to order ${order.orderNumber} via webhook (authorized)`);
+          }
+        } catch (err) {
+          console.error('Error processing cart in webhook:', err);
         }
       }
     }

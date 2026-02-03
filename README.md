@@ -85,11 +85,13 @@ The server will run on **http://localhost:5000**
 - `GET /api/orders/:id` - Get single order
 - `PUT /api/orders/:id` - Update order
 
-### Cart
+### Cart (Website Only - Admin endpoints removed)
 - `GET /api/cart/:sessionId` - Get cart
 - `POST /api/cart/:sessionId` - Add to cart
 - `PUT /api/cart/:sessionId/:itemId` - Update cart item
+- `PUT /api/cart/:sessionId/checkout` - Update cart with checkout info
 - `DELETE /api/cart/:sessionId/:itemId` - Remove from cart
+- `DELETE /api/cart/:sessionId` - Clear cart
 
 ### Banners
 - `GET /api/banners` - List all banners
