@@ -77,6 +77,41 @@ router.post('/:sessionId', async (req, res) => {
   }
 });
 
+// Update cart with checkout information (shipping address, payment method)
+// This is called when user proceeds to checkout
+// IMPORTANT: This route must come BEFORE /:sessionId/:itemId to avoid route conflicts
+router.put('/:sessionId/checkout', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { shippingAddress, paymentMethod, userId } = req.body;
+
+    const cart = await Cart.findOne({ 
+      sessionId,
+      status: 'active'
+    });
+
+    if (!cart) {
+      return res.status(404).json({ error: 'Cart not found' });
+    }
+
+    if (cart.items.length === 0) {
+      return res.status(400).json({ error: 'Cart is empty' });
+    }
+
+    cart.shippingAddress = shippingAddress;
+    cart.paymentMethod = paymentMethod;
+    cart.status = 'pending';
+    cart.user = userId || cart.user;
+    cart.expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+    await cart.save();
+    res.json(cart);
+  } catch (error) {
+    console.error('Error updating cart checkout:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Update cart item quantity
 router.put('/:sessionId/:itemId', async (req, res) => {
   try {
@@ -155,40 +190,6 @@ router.delete('/:sessionId', async (req, res) => {
     res.json({ message: 'Cart cleared' });
   } catch (error) {
     console.error('Error clearing cart:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Update cart with checkout information (shipping address, payment method)
-// This is called when user proceeds to checkout
-router.put('/:sessionId/checkout', async (req, res) => {
-  try {
-    const { sessionId } = req.params;
-    const { shippingAddress, paymentMethod, userId } = req.body;
-
-    const cart = await Cart.findOne({ 
-      sessionId,
-      status: 'active'
-    });
-
-    if (!cart) {
-      return res.status(404).json({ error: 'Cart not found' });
-    }
-
-    if (cart.items.length === 0) {
-      return res.status(400).json({ error: 'Cart is empty' });
-    }
-
-    cart.shippingAddress = shippingAddress;
-    cart.paymentMethod = paymentMethod;
-    cart.status = 'pending';
-    cart.user = userId || cart.user;
-    cart.expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
-
-    await cart.save();
-    res.json(cart);
-  } catch (error) {
-    console.error('Error updating cart checkout:', error);
     res.status(500).json({ error: error.message });
   }
 });
