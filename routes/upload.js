@@ -97,8 +97,8 @@ router.post('/image', upload.single('image'), async (req, res) => {
   }
 });
 
-// Upload multiple images to S3 or local storage
-router.post('/images', upload.array('images', 10), async (req, res) => {
+// Upload multiple images to S3 or local storage (increased limit to 20 for admin)
+router.post('/images', upload.array('images', 20), async (req, res) => {
   try {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ error: 'No files uploaded' });

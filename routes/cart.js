@@ -146,10 +146,15 @@ router.put('/:sessionId/:itemId', async (req, res) => {
   }
 });
 
-// Remove from cart
-router.delete('/:sessionId/:itemId', async (req, res) => {
+// Remove item from cart by productId (new endpoint - accepts productId in body)
+router.delete('/:sessionId/item', async (req, res) => {
   try {
-    const { sessionId, itemId } = req.params;
+    const { sessionId } = req.params;
+    const { productId } = req.body;
+
+    if (!productId) {
+      return res.status(400).json({ error: 'productId is required in request body' });
+    }
 
     const cart = await Cart.findOne({ 
       sessionId,
@@ -160,17 +165,120 @@ router.delete('/:sessionId/:itemId', async (req, res) => {
       return res.status(404).json({ error: 'Cart not found' });
     }
 
-    cart.items = cart.items.filter(
-      item => item.productId.toString() !== itemId
-    );
+    const initialItemCount = cart.items.length;
 
+    // Filter out the item by productId
+    cart.items = cart.items.filter(item => {
+      return item.productId && item.productId.toString() !== productId;
+    });
+
+    // Check if item was actually removed
+    if (cart.items.length === initialItemCount) {
+      return res.status(404).json({ 
+        error: 'Item not found in cart',
+        cart: cart 
+      });
+    }
+
+    // Recalculate total
     cart.total = cart.items.reduce(
       (sum, item) => sum + item.price * item.quantity,
       0
     );
 
     await cart.save();
-    res.json(cart);
+    res.json({
+      message: 'Item removed from cart',
+      cart: cart
+    });
+  } catch (error) {
+    console.error('Error removing from cart:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Remove item from cart (accepts productId in body or itemId in URL)
+router.delete('/:sessionId/:itemId', async (req, res) => {
+  try {
+    const { sessionId, itemId } = req.params;
+    const { productId, item } = req.body; // Support productId from body or item object
+
+    const cart = await Cart.findOne({ 
+      sessionId,
+      status: 'active'
+    });
+
+    if (!cart) {
+      return res.status(404).json({ error: 'Cart not found' });
+    }
+
+    // Extract productId from various sources
+    let identifierToRemove = productId;
+    
+    // If productId not in body, try to get it from item object
+    if (!identifierToRemove && item) {
+      identifierToRemove = item.productId || item._id || item.id;
+    }
+    
+    // If still not found, try to use itemId from URL (if valid)
+    if (!identifierToRemove && itemId && itemId !== '[object Object]' && itemId !== '[object%20Object]') {
+      identifierToRemove = itemId;
+    }
+
+    // If itemId is [object Object] and no productId provided, return helpful error with cart items
+    if (!identifierToRemove || itemId === '[object Object]' || itemId === '[object%20Object]') {
+      return res.status(400).json({ 
+        error: 'Invalid item identifier. Please provide productId in request body.',
+        hint: 'Send productId in request body: {"productId": "your-product-id"}',
+        example: {
+          method: 'DELETE',
+          url: `/api/cart/${sessionId}/item`,
+          body: { productId: cart.items[0]?.productId?.toString() || 'product-id-here' }
+        },
+        availableItems: cart.items.map(i => ({
+          productId: i.productId?.toString(),
+          name: i.name,
+          itemId: i._id?.toString()
+        }))
+      });
+    }
+
+    const initialItemCount = cart.items.length;
+
+    // Filter out the item - match by productId or item _id
+    cart.items = cart.items.filter(item => {
+      // Match by productId
+      if (item.productId && item.productId.toString() === identifierToRemove) {
+        return false; // Remove this item
+      }
+      
+      // Match by item _id (for cases where itemId is the cart item's _id)
+      if (item._id && item._id.toString() === identifierToRemove) {
+        return false; // Remove this item
+      }
+      
+      return true; // Keep this item
+    });
+
+    // Check if item was actually removed
+    if (cart.items.length === initialItemCount) {
+      return res.status(404).json({ 
+        error: 'Item not found in cart',
+        cart: cart 
+      });
+    }
+
+    // Recalculate total
+    cart.total = cart.items.reduce(
+      (sum, item) => sum + item.price * item.quantity,
+      0
+    );
+
+    await cart.save();
+    res.json({
+      message: 'Item removed from cart',
+      cart: cart
+    });
   } catch (error) {
     console.error('Error removing from cart:', error);
     res.status(500).json({ error: error.message });

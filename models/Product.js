@@ -92,6 +92,9 @@ const productSchema = new mongoose.Schema({
   notes: [{
     type: String,
   }],
+  bulletPoints: [{
+    type: String,
+  }],
   soldOut: {
     type: Boolean,
     default: false,
