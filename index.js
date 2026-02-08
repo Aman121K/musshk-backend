@@ -27,7 +27,7 @@ app.use('/api/', apiLimiter);
 // CORS: allow admin and main site (and localhost for dev); required for Authorization from admin.musshk.com
 const corsOrigins = process.env.CORS_ORIGINS
   ? process.env.CORS_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
-  : ['https://admin.musshk.com', 'https://musshk.com', 'http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001'];
+  : ['https://admin.musshk.com', 'https://musshk.com', 'https://www.musshk.com', 'http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001'];
 app.use(cors({
   origin: (origin, cb) => {
     if (!origin) return cb(null, true); // same-origin or server-to-server
