@@ -2,9 +2,27 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const path = require('path');
+const compression = require('compression');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
 const app = express();
+
+// Security & performance middleware (before routes)
+app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+app.use(compression());
+
+// Rate limiting: 200 requests per 1 min per IP (handles 2k+ users with burst protection)
+const apiLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,
+  max: 200,
+  message: { error: 'Too many requests, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.originalUrl === '/api/health' || req.originalUrl?.endsWith('/api/health'),
+});
+app.use('/api/', apiLimiter);
 
 // Middleware
 app.use(cors());
@@ -13,18 +31,19 @@ app.use(cors());
 app.use('/api/payment/webhook', express.raw({ type: 'application/json' }));
 
 // Regular JSON parsing for all other routes
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 // Serve static files (uploaded images)
 app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
 
-// MongoDB Connection
+// MongoDB Connection (pool for 2k+ concurrent users)
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27018/musk';
 
 mongoose.connect(MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
+  maxPoolSize: 50,
+  minPoolSize: 10,
+  serverSelectionTimeoutMS: 10000,
 })
 .then(() => console.log('MongoDB Connected'))
 .catch((err) => console.error('MongoDB connection error:', err));
@@ -44,6 +63,8 @@ app.use('/api/upload', require('./routes/upload'));
 app.use('/api/import', require('./routes/import'));
 app.use('/api/payment', require('./routes/payment'));
 app.use('/api/visitors', require('./routes/visitors'));
+app.use('/api/marketplaces', require('./routes/marketplaces'));
+app.use('/api/subscribers', require('./routes/subscribers'));
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -61,6 +82,8 @@ app.get('/', (req, res) => {
       blogs: '/api/blogs',
       testimonials: '/api/testimonials',
       banners: '/api/banners',
+      marketplaces: '/api/marketplaces',
+      subscribers: '/api/subscribers',
       discounts: '/api/discounts',
       users: '/api/users',
       orders: '/api/orders',

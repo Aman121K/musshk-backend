@@ -44,6 +44,8 @@ router.post('/', async (req, res) => {
   try {
     const blog = new Blog(req.body);
     await blog.save();
+    const { notifySubscribersNewBlog } = require('../utils/email');
+    notifySubscribersNewBlog(blog).catch((err) => console.error('Subscriber notify:', err));
     res.status(201).json(blog);
   } catch (error) {
     res.status(400).json({ error: error.message });

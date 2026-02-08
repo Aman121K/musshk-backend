@@ -78,6 +78,8 @@ router.post('/', async (req, res) => {
   try {
     const product = new Product(req.body);
     await product.save();
+    const { notifySubscribersNewProduct } = require('../utils/email');
+    notifySubscribersNewProduct(product).catch((err) => console.error('Subscriber notify:', err));
     res.status(201).json(product);
   } catch (error) {
     res.status(400).json({ error: error.message });

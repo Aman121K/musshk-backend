@@ -103,5 +103,10 @@ const productSchema = new mongoose.Schema({
   timestamps: true,
 });
 
+productSchema.index({ slug: 1 }, { unique: true });
+productSchema.index({ category: 1 });
+productSchema.index({ bestSeller: 1, newArrival: 1 });
+productSchema.index({ createdAt: -1 });
+
 module.exports = mongoose.model('Product', productSchema);
 

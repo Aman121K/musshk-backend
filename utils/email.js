@@ -134,8 +134,124 @@ const generateInvoice = (order) => {
   return generateOrderEmailHTML(order, null);
 };
 
+const getSiteUrl = () => process.env.SITE_URL || process.env.FRONTEND_URL || 'https://musshk.com';
+
+const productEmailHTML = (product, productUrl) => `
+  <!DOCTYPE html>
+  <html>
+  <head><meta charset="utf-8"></head>
+  <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+    <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+      <div style="background: #5e2751; color: white; padding: 20px; text-align: center;">
+        <h1 style="margin: 0;">Musshk</h1>
+        <p style="margin: 8px 0 0;">New arrival for you</p>
+      </div>
+      <div style="background: #f9f9f9; padding: 20px;">
+        <h2 style="color: #5e2751;">A new product is here</h2>
+        <p><strong>${product.name}</strong></p>
+        ${product.shortDescription ? `<p>${product.shortDescription}</p>` : ''}
+        <p style="margin-top: 20px;">
+          <a href="${productUrl}" style="display: inline-block; background: #5e2751; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">View product</a>
+        </p>
+      </div>
+      <p style="text-align: center; color: #666; font-size: 12px;">&copy; ${new Date().getFullYear()} Musshk</p>
+    </div>
+  </body>
+  </html>
+`;
+
+const blogEmailHTML = (blog, blogUrl) => `
+  <!DOCTYPE html>
+  <html>
+  <head><meta charset="utf-8"></head>
+  <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+    <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+      <div style="background: #5e2751; color: white; padding: 20px; text-align: center;">
+        <h1 style="margin: 0;">Musshk</h1>
+        <p style="margin: 8px 0 0;">New from our blog</p>
+      </div>
+      <div style="background: #f9f9f9; padding: 20px;">
+        <h2 style="color: #5e2751;">${blog.title}</h2>
+        ${blog.excerpt ? `<p>${blog.excerpt}</p>` : ''}
+        <p style="margin-top: 20px;">
+          <a href="${blogUrl}" style="display: inline-block; background: #5e2751; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Read more</a>
+        </p>
+      </div>
+      <p style="text-align: center; color: #666; font-size: 12px;">&copy; ${new Date().getFullYear()} Musshk</p>
+    </div>
+  </body>
+  </html>
+`;
+
+const sendNewProductEmail = async (to, product) => {
+  try {
+    const base = getSiteUrl().replace(/\/$/, '');
+    const productUrl = `${base}/products/${product.slug}`;
+    const transporter = createTransporter();
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM || 'Musshk <noreply@musshk.com>',
+      to,
+      subject: `Musshk – New product: ${product.name}`,
+      html: productEmailHTML(product, productUrl),
+    });
+    return true;
+  } catch (err) {
+    console.error('Error sending new product email to', to, err);
+    return false;
+  }
+};
+
+const sendNewBlogEmail = async (to, blog) => {
+  try {
+    const base = getSiteUrl().replace(/\/$/, '');
+    const blogUrl = `${base}/blog/${blog.slug}`;
+    const transporter = createTransporter();
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM || 'Musshk <noreply@musshk.com>',
+      to,
+      subject: `Musshk – New post: ${blog.title}`,
+      html: blogEmailHTML(blog, blogUrl),
+    });
+    return true;
+  } catch (err) {
+    console.error('Error sending new blog email to', to, err);
+    return false;
+  }
+};
+
+const notifySubscribersNewProduct = async (product) => {
+  const Subscriber = require('../models/Subscriber');
+  try {
+    const subscribers = await Subscriber.find({}).select('email').lean();
+    for (const sub of subscribers) {
+      sendNewProductEmail(sub.email, product).catch(() => {});
+    }
+    if (subscribers.length) console.log(`Notified ${subscribers.length} subscriber(s) about new product: ${product.name}`);
+  } catch (err) {
+    console.error('Error notifying subscribers of new product:', err);
+  }
+};
+
+const notifySubscribersNewBlog = async (blog) => {
+  const Subscriber = require('../models/Subscriber');
+  try {
+    const subscribers = await Subscriber.find({}).select('email').lean();
+    for (const sub of subscribers) {
+      sendNewBlogEmail(sub.email, blog).catch(() => {});
+    }
+    if (subscribers.length) console.log(`Notified ${subscribers.length} subscriber(s) about new blog: ${blog.title}`);
+  } catch (err) {
+    console.error('Error notifying subscribers of new blog:', err);
+  }
+};
+
 module.exports = {
   sendOrderConfirmation,
   generateInvoice,
+  sendNewProductEmail,
+  sendNewBlogEmail,
+  notifySubscribersNewProduct,
+  notifySubscribersNewBlog,
+  getSiteUrl,
 };
 

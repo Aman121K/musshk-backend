@@ -44,7 +44,7 @@ const upload = multer({
 function getFolder(req) {
   const folder = req.query.folder || req.body.folder || 'uploads';
   // Validate folder name (security: only allow specific folders)
-  const allowedFolders = ['banners', 'products', 'blogs', 'testimonials', 'discounts', 'uploads'];
+  const allowedFolders = ['banners', 'products', 'blogs', 'testimonials', 'discounts', 'marketplaces', 'uploads'];
   return allowedFolders.includes(folder) ? folder : 'uploads';
 }
 
