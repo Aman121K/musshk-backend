@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const Order = require('../models/Order');
 const Cart = require('../models/Cart');
 const { sendOrderConfirmation } = require('../utils/email');
+const { createShipment, isConfigured: ithinkConfigured } = require('../utils/ithinkLogistics');
 
 // Use provided Razorpay keys or environment variables
 const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || 'rzp_test_SBJlI3LInAUFFp';
@@ -122,6 +123,22 @@ const createOrderFromData = async (orderData, payment) => {
       console.log(`Order confirmation email sent to ${order.email}`);
     } catch (emailError) {
       console.error('Error sending order confirmation email:', emailError);
+    }
+
+    // Create shipment at iThink Logistics (async, don't block)
+    if (ithinkConfigured()) {
+      createShipment(order)
+        .then((result) => {
+          if (result && result.waybill) {
+            return Order.findByIdAndUpdate(order._id, {
+              trackingNumber: result.waybill,
+              trackingUrl: result.tracking_url || undefined,
+              ithinkRefNum: result.refnum || undefined,
+            });
+          }
+        })
+        .then(() => console.log(`iThink shipment created for order ${order.orderNumber}`))
+        .catch((err) => console.error('iThink create shipment failed:', err));
     }
 
     return order;
@@ -280,6 +297,22 @@ const convertCartToOrder = async (cart, payment) => {
     } catch (emailError) {
       console.error('Error sending order confirmation email:', emailError);
       // Don't fail the webhook if email fails
+    }
+
+    // Create shipment at iThink Logistics (async)
+    if (ithinkConfigured()) {
+      createShipment(order)
+        .then((result) => {
+          if (result && result.waybill) {
+            return Order.findByIdAndUpdate(order._id, {
+              trackingNumber: result.waybill,
+              trackingUrl: result.tracking_url || undefined,
+              ithinkRefNum: result.refnum || undefined,
+            });
+          }
+        })
+        .then(() => console.log(`iThink shipment created for order ${order.orderNumber}`))
+        .catch((err) => console.error('iThink create shipment failed:', err));
     }
 
     return order;

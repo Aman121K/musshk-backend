@@ -62,6 +62,12 @@ const orderSchema = new mongoose.Schema({
   trackingNumber: {
     type: String,
   },
+  trackingUrl: {
+    type: String,
+  },
+  ithinkRefNum: {
+    type: String,
+  },
   paymentDetails: {
     razorpay_order_id: String,
     razorpay_payment_id: String,

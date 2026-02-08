@@ -24,8 +24,21 @@ const apiLimiter = rateLimit({
 });
 app.use('/api/', apiLimiter);
 
-// Middleware
-app.use(cors());
+// CORS: allow admin and main site (and localhost for dev); required for Authorization from admin.musshk.com
+const corsOrigins = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
+  : ['https://admin.musshk.com', 'https://musshk.com', 'http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001'];
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true); // same-origin or server-to-server
+    if (corsOrigins.includes(origin)) return cb(null, true);
+    return cb(null, false);
+  },
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
+  credentials: true,
+  optionsSuccessStatus: 204,
+}));
 
 // Webhook route needs raw body, so we handle it before JSON parsing
 app.use('/api/payment/webhook', express.raw({ type: 'application/json' }));
