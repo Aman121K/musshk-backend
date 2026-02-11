@@ -21,21 +21,31 @@ The admin panel uploads product (and other) images **directly to your S3 bucket*
    - Bucket policy that allows `s3:GetObject` public, or
    - CloudFront in front of the bucket and use CloudFront URL as `AWS_S3_BASE_URL`.
 
-2. **CORS**  
-   The browser sends a PUT from the admin origin (e.g. `https://admin.musshk.com` or `http://localhost:3001`). Add CORS to the bucket, e.g.:
+2. **CORS (fixes "CORS error" on direct PUT)**  
+   The browser sends a **PUT** from the admin origin to the S3 URL. If the bucket has no CORS or wrong CORS, the browser blocks with a CORS error. **Set CORS on the S3 bucket** in AWS (the backend cannot fix this).
+
+   **Steps:** AWS Console → S3 → your bucket (e.g. `musshk-images`) → **Permissions** tab → **Cross-origin resource sharing (CORS)** → **Edit** → paste the config below → **Save**.
+
+   **CORS configuration (paste as-is, then save):**
 
    ```json
    [
      {
        "AllowedHeaders": ["*"],
-       "AllowedMethods": ["GET", "PUT", "HEAD"],
-       "AllowedOrigins": ["https://admin.musshk.com", "http://localhost:3001"],
-       "ExposeHeaders": ["ETag"]
+       "AllowedMethods": ["GET", "PUT", "HEAD", "POST"],
+       "AllowedOrigins": [
+         "https://admin.musshk.com",
+         "http://localhost:3001",
+         "http://localhost:3000",
+         "http://127.0.0.1:3001",
+         "http://127.0.0.1:3000"
+       ],
+       "ExposeHeaders": ["ETag", "x-amz-checksum-crc32"]
      }
    ]
    ```
 
-   In AWS Console: Bucket → Permissions → CORS.
+   Add every origin where the admin runs; `AllowedHeaders: ["*"]` allows `Content-Type` and other headers. After saving, wait a few seconds and retry the upload.
 
 3. **Block public access**  
    If you use a bucket policy for public read, ensure “Block public access” is set so that only the policy grants read (not “block all”).
