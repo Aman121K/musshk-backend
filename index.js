@@ -43,6 +43,10 @@ app.use(cors({
 // Webhook route needs raw body, so we handle it before JSON parsing
 app.use('/api/payment/webhook', express.raw({ type: 'application/json' }));
 
+// Upload routes must be registered BEFORE body parsers so multipart requests
+// are not subject to the 1mb limit (avoids 413 when proxy doesn't set limit)
+app.use('/api/upload', require('./routes/upload'));
+
 // Regular JSON parsing for all other routes
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
@@ -72,7 +76,6 @@ app.use('/api/testimonials', require('./routes/testimonials'));
 app.use('/api/banners', require('./routes/banners'));
 app.use('/api/discounts', require('./routes/discounts'));
 app.use('/api/users', require('./routes/users'));
-app.use('/api/upload', require('./routes/upload'));
 app.use('/api/import', require('./routes/import'));
 app.use('/api/payment', require('./routes/payment'));
 app.use('/api/visitors', require('./routes/visitors'));

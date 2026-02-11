@@ -92,6 +92,10 @@ const productSchema = new mongoose.Schema({
   notes: [{
     type: String,
   }],
+  topNotes: [{ type: String }],
+  heartNotes: [{ type: String }],
+  baseNotes: [{ type: String }],
+  otherNotes: [{ type: String }],
   bulletPoints: [{
     type: String,
   }],

@@ -1,4 +1,5 @@
 const { S3Client, PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const path = require('path');
 const fs = require('fs');
 
@@ -93,6 +94,34 @@ async function deleteFromS3(s3Url) {
 }
 
 /**
+ * Get a presigned PUT URL for direct browser upload to S3.
+ * Client should PUT the file with the same Content-Type.
+ * @param {String} folder - S3 folder (e.g. 'products', 'banners')
+ * @param {String} fileName - Original or safe filename (will be made unique)
+ * @param {String} contentType - MIME type (e.g. 'image/jpeg')
+ * @param {Number} expiresIn - URL expiry in seconds (default 900)
+ * @returns {Promise<{ uploadUrl: string, publicUrl: string }>}
+ */
+async function getPresignedPutUrl(folder = 'uploads', fileName, contentType = 'image/jpeg', expiresIn = 900) {
+  if (!isS3Configured()) {
+    throw new Error('S3 is not configured');
+  }
+  const ext = path.extname(fileName) || '.jpg';
+  const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1E9)}${ext}`;
+  const key = `${folder}/${uniqueName}`;
+
+  const command = new PutObjectCommand({
+    Bucket: BUCKET_NAME,
+    Key: key,
+    ContentType: contentType,
+  });
+
+  const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn });
+  const publicUrl = `${S3_BASE_URL}/${key}`;
+  return { uploadUrl, publicUrl };
+}
+
+/**
  * Delete local file
  * @param {String} filePath - Local file path
  */
@@ -112,5 +141,8 @@ module.exports = {
   deleteFromS3,
   deleteLocalFile,
   isS3Configured,
+  getPresignedPutUrl,
+  BUCKET_NAME,
+  S3_BASE_URL,
 };
 

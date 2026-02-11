@@ -3,7 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { uploadToS3, deleteLocalFile, isS3Configured } = require('../utils/s3');
+const { uploadToS3, deleteLocalFile, isS3Configured, getPresignedPutUrl } = require('../utils/s3');
 
 // Ensure uploads directory exists (temporary storage before S3 upload, or permanent if S3 not configured)
 const uploadsDir = path.join(__dirname, '../../public/uploads');
@@ -47,6 +47,23 @@ function getFolder(req) {
   const allowedFolders = ['banners', 'products', 'blogs', 'testimonials', 'discounts', 'marketplaces', 'uploads'];
   return allowedFolders.includes(folder) ? folder : 'uploads';
 }
+
+// Get presigned PUT URL for direct browser upload to S3 (no file through API = no 413)
+router.get('/presign', async (req, res) => {
+  try {
+    if (!isS3Configured()) {
+      return res.status(503).json({ error: 'Direct S3 upload is not configured. Set AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_S3_BUCKET_NAME.' });
+    }
+    const folder = getFolder(req);
+    const filename = req.query.filename || `image-${Date.now()}.jpg`;
+    const contentType = req.query.contentType || 'image/jpeg';
+    const { uploadUrl, publicUrl } = await getPresignedPutUrl(folder, filename, contentType);
+    res.json({ uploadUrl, publicUrl });
+  } catch (error) {
+    console.error('Presign error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // Upload single image to S3 or local storage
 router.post('/image', upload.single('image'), async (req, res) => {
