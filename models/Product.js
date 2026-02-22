@@ -96,9 +96,18 @@ const productSchema = new mongoose.Schema({
   heartNotes: [{ type: String }],
   baseNotes: [{ type: String }],
   otherNotes: [{ type: String }],
+  topNotesImage: { type: String },
+  heartNotesImage: { type: String },
+  baseNotesImage: { type: String },
   bulletPoints: [{
     type: String,
   }],
+  ingredients: {
+    type: String,
+  },
+  packagingAndRecycling: {
+    type: String,
+  },
   soldOut: {
     type: Boolean,
     default: false,
