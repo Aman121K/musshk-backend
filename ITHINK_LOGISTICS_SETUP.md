@@ -52,6 +52,12 @@ Optional: default parcel dimensions (used when creating shipment)
   - Check `.env`: `ITHINK_ACCESS_TOKEN`, `ITHINK_SECRET_KEY`, `ITHINK_PICKUP_ADDRESS_ID`.  
   - Check backend logs for "iThink create shipment failed" or "iThink shipment created for order ...".
 
+- **Live dummy order failed with warehouse phone error**  
+  - Example: `orderNumber: DUMMY1772456302587`  
+  - Error: `Delhivery Logistics Error : Warehouse Creation Failed - phone: phone must be a string`  
+  - Meaning: request reached iThink, but the pickup warehouse profile linked to `ITHINK_PICKUP_ADDRESS_ID` (for example `1293`) is invalid in iThink/Delhivery.  
+  - Fix in iThink dashboard: edit pickup/warehouse phone to a valid string mobile format (10 digits, no malformed value), save, then retry order creation.
+
 - **Print shipping label fails**  
   - Order must have `trackingNumber` (waybill).  
   - Ensure iThink credentials are correct and the waybill exists in iThink.

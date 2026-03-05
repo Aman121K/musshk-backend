@@ -9,6 +9,10 @@ const ACCESS_TOKEN = process.env.ITHINK_ACCESS_TOKEN || '';
 const SECRET_KEY = process.env.ITHINK_SECRET_KEY || '';
 const PICKUP_ADDRESS_ID = process.env.ITHINK_PICKUP_ADDRESS_ID || '1293';
 const RETURN_ADDRESS_ID = process.env.ITHINK_RETURN_ADDRESS_ID || process.env.ITHINK_PICKUP_ADDRESS_ID || '1293';
+const LOGISTICS = process.env.ITHINK_LOGISTICS || '';
+const SERVICE_TYPE = process.env.ITHINK_SERVICE_TYPE || process.env.ITHINK_SHIPMENT_SERVICE_TYPE || '';
+const API_SOURCE = process.env.ITHINK_API_SOURCE || '';
+const STORE_ID = process.env.ITHINK_STORE_ID || '';
 
 const DEFAULT_WEIGHT_KG = parseFloat(process.env.ITHINK_DEFAULT_WEIGHT_KG || '0.5');
 const DEFAULT_LENGTH_CM = parseFloat(process.env.ITHINK_DEFAULT_LENGTH_CM || '20');
@@ -104,6 +108,8 @@ function buildShipmentPayload(order) {
     gst_number: '',
     what3words: '',
     return_address_id: String(RETURN_ADDRESS_ID),
+    ...(STORE_ID ? { store_id: String(STORE_ID) } : {}),
+    ...(API_SOURCE ? { api_source: String(API_SOURCE) } : {}),
   };
 
   return {
@@ -113,6 +119,10 @@ function buildShipmentPayload(order) {
       access_token: ACCESS_TOKEN,
       secret_key: SECRET_KEY,
       order_type: 'forward',
+      ...(LOGISTICS ? { logistics: String(LOGISTICS) } : {}),
+      ...(SERVICE_TYPE ? { s_type: String(SERVICE_TYPE) } : {}),
+      ...(SERVICE_TYPE ? { logistics_service_type: String(SERVICE_TYPE) } : {}),
+      ...(API_SOURCE ? { api_source: String(API_SOURCE) } : {}),
     },
   };
 }
@@ -145,8 +155,9 @@ async function createShipment(order) {
   const data = json.data;
   const firstKey = data && typeof data === 'object' ? Object.keys(data)[0] : null;
   const first = firstKey ? data[firstKey] : null;
+  const firstStatus = String(first?.status || '').toLowerCase();
 
-  if (!first || first.status !== 'Success') {
+  if (!first || firstStatus !== 'success') {
     const msg = (first && first.remark) || json.html_message || 'Unknown error';
     throw new Error(`iThink order failed: ${msg}`);
   }

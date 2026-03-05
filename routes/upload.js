@@ -44,7 +44,7 @@ const upload = multer({
 function getFolder(req) {
   const folder = req.query.folder || req.body.folder || 'uploads';
   // Validate folder name (security: only allow specific folders)
-  const allowedFolders = ['banners', 'products', 'blogs', 'testimonials', 'discounts', 'marketplaces', 'uploads'];
+  const allowedFolders = ['banners', 'products', 'blogs', 'testimonials', 'discounts', 'marketplaces', 'contact-messages', 'uploads'];
   return allowedFolders.includes(folder) ? folder : 'uploads';
 }
 
@@ -184,4 +184,3 @@ router.post('/images', upload.array('images', 20), async (req, res) => {
 });
 
 module.exports = router;
-

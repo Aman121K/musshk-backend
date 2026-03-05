@@ -81,6 +81,7 @@ app.use('/api/payment', require('./routes/payment'));
 app.use('/api/visitors', require('./routes/visitors'));
 app.use('/api/marketplaces', require('./routes/marketplaces'));
 app.use('/api/subscribers', require('./routes/subscribers'));
+app.use('/api/contact-messages', require('./routes/contactMessages'));
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -100,6 +101,7 @@ app.get('/', (req, res) => {
       banners: '/api/banners',
       marketplaces: '/api/marketplaces',
       subscribers: '/api/subscribers',
+      contactMessages: '/api/contact-messages',
       discounts: '/api/discounts',
       users: '/api/users',
       orders: '/api/orders',
@@ -115,4 +117,3 @@ app.listen(PORT, () => {
   console.log(`📍 Health check: http://localhost:${PORT}/api/health`);
   console.log(`📚 API Documentation: http://localhost:${PORT}/`);
 });
-
