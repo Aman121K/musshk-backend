@@ -10,6 +10,9 @@ const s3Client = new S3Client({
     accessKeyId: process.env.AWS_ACCESS_KEY_ID,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
   },
+  // Prevent SDK from adding optional checksum params to presigned PUT URLs.
+  // Those params can cause upload failures in browser direct-to-S3 flows.
+  requestChecksumCalculation: 'WHEN_REQUIRED',
 });
 
 const BUCKET_NAME = process.env.AWS_S3_BUCKET_NAME;
@@ -145,4 +148,3 @@ module.exports = {
   BUCKET_NAME,
   S3_BASE_URL,
 };
-
