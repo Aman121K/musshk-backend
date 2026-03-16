@@ -12,6 +12,30 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Upsert category by slug (Admin only)
+router.put('/slug/:slug', async (req, res) => {
+  try {
+    const slug = String(req.params.slug || '').trim().toLowerCase();
+    if (!slug) {
+      return res.status(400).json({ error: 'Slug is required' });
+    }
+
+    const payload = {
+      ...req.body,
+      slug,
+    };
+
+    const category = await Category.findOneAndUpdate(
+      { slug },
+      payload,
+      { new: true, runValidators: true, upsert: true, setDefaultsOnInsert: true }
+    );
+    res.json(category);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
 // Get single category
 router.get('/:slug', async (req, res) => {
   try {
@@ -22,6 +46,23 @@ router.get('/:slug', async (req, res) => {
     res.json(category);
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Update category by id (Admin only)
+router.put('/:id', async (req, res) => {
+  try {
+    const category = await Category.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true, runValidators: true }
+    );
+    if (!category) {
+      return res.status(404).json({ error: 'Category not found' });
+    }
+    res.json(category);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
   }
 });
 
@@ -37,4 +78,3 @@ router.post('/', async (req, res) => {
 });
 
 module.exports = router;
-
