@@ -5,7 +5,7 @@ const Product = require('../models/Product');
 // Get all products
 router.get('/', async (req, res) => {
   try {
-    const { category, featured, bestSeller, newArrival, newArrivalDate, collection, search, limit, page } = req.query;
+    const { category, featured, bestSeller, newArrival, newArrivalDate, collection, search, limit, page, ids } = req.query;
     const query = {};
 
     if (category) query.category = category;
@@ -23,6 +23,15 @@ router.get('/', async (req, res) => {
         { description: { $regex: search, $options: 'i' } },
         { code: { $regex: search, $options: 'i' } },
       ];
+    }
+    if (ids) {
+      const list = String(ids)
+        .split(',')
+        .map((id) => id.trim())
+        .filter(Boolean);
+      if (list.length > 0) {
+        query._id = { $in: list };
+      }
     }
 
     const pageNum = parseInt(page) || 1;
@@ -117,4 +126,3 @@ router.delete('/:id', async (req, res) => {
 });
 
 module.exports = router;
-

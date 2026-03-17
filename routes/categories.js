@@ -124,6 +124,19 @@ router.put('/slug/:slug', async (req, res) => {
   }
 });
 
+// Get single category by id
+router.get('/id/:id', async (req, res) => {
+  try {
+    const category = await Category.findById(req.params.id).populate('productIds', '_id name slug code');
+    if (!category) {
+      return res.status(404).json({ error: 'Category not found' });
+    }
+    res.json(category);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get single category by slug
 router.get('/:slug', async (req, res) => {
   try {
